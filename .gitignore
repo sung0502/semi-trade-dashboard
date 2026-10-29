@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+tests/fixture_raw/
+tests/fixture_out/
+.env
+# data/raw/ and data/processed/ are committed on purpose: raw pulls make every figure traceable,
+# and Streamlit Community Cloud serves the app from data/processed/.

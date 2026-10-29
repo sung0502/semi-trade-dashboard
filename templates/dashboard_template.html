@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U.S. Semiconductor Trade Dependence</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --other: #c3c2b7;
+  --pos: #2a78d6; --neg: #e34948; --up-good: #006300; --down-bad: #d03b3b;
+  --warn-bg: #fff4d6; --warn-ink: #5c4300; --accent: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --other: #5a5955;
+    --pos: #3987e5; --neg: #e66767; --up-good: #0ca30c; --down-bad: #e66767;
+    --warn-bg: #3a2f10; --warn-ink: #f5d78a; --accent: #3987e5;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --other: #5a5955;
+  --pos: #3987e5; --neg: #e66767; --up-good: #0ca30c; --down-bad: #e66767;
+  --warn-bg: #3a2f10; --warn-ink: #f5d78a; --accent: #3987e5;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 32px 16px 64px; }
+header h1 { font-size: 28px; line-height: 1.2; margin: 0 0 6px; font-weight: 650; letter-spacing: -0.01em; }
+header p { margin: 0; color: var(--ink-2); max-width: 760px; }
+.meta { font-size: 13px; color: var(--muted); margin-top: 8px; }
+.meta a { color: inherit; }
+.banner { background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px; padding: 10px 14px;
+  margin: 16px 0 0; font-weight: 600; font-size: 14px; }
+.filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 24px 0 16px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; color: var(--ink-2); padding: 7px 14px; font: inherit; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 10px; max-width: 100%; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; min-width: 0; }
+.kpi .label { font-size: 13px; color: var(--ink-2); }
+.kpi .value { font-size: 26px; font-weight: 600; margin: 2px 0; overflow-wrap: anywhere; }
+.kpi .sub { font-size: 13px; color: var(--muted); }
+.delta.up { color: var(--up-good); } .delta.down { color: var(--down-bad); } .delta.flat { color: var(--muted); }
+.grid2 { display: grid; grid-template-columns: 3fr 2fr; gap: 12px; margin-top: 12px; }
+.card h2 { font-size: 16px; margin: 0 0 2px; font-weight: 600; }
+.card .desc { font-size: 13px; color: var(--ink-2); margin: 0 0 12px; }
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink-2); margin-top: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.evkey { font-size: 12px; color: var(--muted); margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.evkey b { color: var(--ink-2); font-weight: 600; }
+.tip { position: fixed; pointer-events: none; z-index: 10; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 13px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12); min-width: 150px; display: none; }
+.tip .t { color: var(--ink-2); margin-bottom: 4px; font-weight: 600; }
+.tip .row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.tip .row .k { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); }
+.tip .row .k i { width: 12px; height: 2px; display: inline-block; border-radius: 1px; }
+.tip .row .v { font-weight: 600; font-variant-numeric: tabular-nums; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--grid); }
+th { font-weight: 600; color: var(--ink-2); font-size: 13px; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+.tablewrap { overflow-x: auto; }
+.evsel { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.note { font-size: 13px; color: var(--ink-2); background: var(--page); border-radius: 8px; padding: 8px 10px; margin: 0 0 10px; }
+.events-list { min-width: 640px; }
+.events-list td:nth-child(2) { white-space: nowrap; }
+.events-list a { color: var(--accent); }
+details { margin-top: 10px; font-size: 13px; color: var(--ink-2); }
+details summary { cursor: pointer; }
+.method { font-size: 14px; color: var(--ink-2); }
+.method p { margin: 0 0 8px; }
+@media (max-width: 860px) {
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 420px) { .kpi .value { font-size: 22px; } header h1 { font-size: 24px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>U.S. semiconductor trade dependence</h1>
+    <p>Where the United States buys and sends chips and chipmaking equipment, how concentrated those partners are, and how trade shifted around major tariff and export-control actions.</p>
+    <div class="meta" id="meta"></div>
+    <div class="banner" id="banner" hidden>Synthetic test data. These numbers are made up to test the pipeline. Run the Census download to build the real dashboard.</div>
+  </header>
+
+  <div class="filters" role="group" aria-label="Filters">
+    <div class="seg" id="flowSeg">
+      <button data-flow="imports" aria-pressed="true">Imports</button>
+      <button data-flow="exports" aria-pressed="false">Exports</button>
+    </div>
+    <label><span class="sr" hidden>Product</span><select id="product" aria-label="Product"></select></label>
+  </div>
+
+  <section class="kpis" id="kpis"></section>
+
+  <div class="grid2">
+    <section class="card">
+      <h2 id="shareTitle">Supplier share of U.S. imports</h2>
+      <p class="desc">Share of trailing 12-month value. Numbered lines mark policy events.</p>
+      <div class="chart" id="shareChart" tabindex="0" aria-label="Share over time chart. Use left and right arrow keys to read values."></div>
+      <div class="legend" id="shareLegend"></div>
+      <div class="evkey" id="shareEvKey"></div>
+    </section>
+    <section class="card">
+      <h2>Concentration (HHI)</h2>
+      <p class="desc">Herfindahl-Hirschman Index of partner shares, trailing 12 months. Above 1,800 is highly concentrated.</p>
+      <div class="chart" id="hhiChart" tabindex="0" aria-label="HHI over time chart. Use left and right arrow keys to read values."></div>
+      <div class="evkey" id="hhiEvKey"></div>
+    </section>
+  </div>
+
+  <div class="grid2">
+    <section class="card">
+      <h2>Share shift around a policy event</h2>
+      <p class="desc">Change in each partner's share, 12 months after the event versus 12 months before (event month excluded).</p>
+      <div class="evsel"><select id="eventSel" aria-label="Policy event"></select></div>
+      <p class="note" id="eventNote"></p>
+      <div class="chart" id="eventChart"></div>
+    </section>
+    <section class="card">
+      <h2 id="tableTitle">Top partners, last 12 months</h2>
+      <p class="desc" id="tableDesc"></p>
+      <div class="tablewrap"><table id="topTable"></table></div>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:12px">
+    <h2>Policy events</h2>
+    <p class="desc">Dates checked against official or primary sources. See the notes column for anything still unconfirmed.</p>
+    <div class="tablewrap"><table class="events-list" id="eventsTable"></table></div>
+  </section>
+
+  <section class="card method" style="margin-top:12px">
+    <h2>Method and limitations</h2>
+    <p>Source: U.S. Census Bureau International Trade API, HS4 commodity level, monthly values in current U.S. dollars (not inflation-adjusted). Imports use general imports by country of origin; exports use total exports by country of destination.</p>
+    <p>Country groupings (such as the EU) and regional totals are excluded so nothing is counted twice. Each month, the country rows are reconciled against the Census all-countries total. Recent months are subject to Census revisions.</p>
+    <p>HHI is the sum of squared percentage shares (0 to 10,000), with bands from the 2023 DOJ/FTC Merger Guidelines. Before/after comparisons show association, not causation. Other factors, such as demand cycles, the 2021 shortage and firm-level investment, move trade at the same time.</p>
+    <p>Imports of chips by country of origin often reflect where chips were assembled and tested, not where the wafers were made. This is why Malaysia, Vietnam and similar countries can rank above Taiwan.</p>
+  </section>
+</div>
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const SERIES_VARS = ["--s1", "--s2", "--s3", "--s4", "--s5"];
+const NS = "http://www.w3.org/2000/svg";
+const state = { flow: "imports", product: "chips", event: null };
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+function el(tag, attrs = {}, parent) {
+  const n = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function h(tag, text, cls) {
+  const n = document.createElement(tag);
+  if (text != null) n.textContent = text;
+  if (cls) n.className = cls;
+  return n;
+}
+function money(v) {
+  if (v == null) return "n/a";
+  const a = Math.abs(v);
+  if (a >= 1e12) return "$" + (v / 1e12).toFixed(2) + "T";
+  if (a >= 1e9) return "$" + (v / 1e9).toFixed(1) + "B";
+  if (a >= 1e6) return "$" + (v / 1e6).toFixed(0) + "M";
+  return "$" + Math.round(v).toLocaleString();
+}
+const pct = (v, d = 1) => (v == null ? "n/a" : v.toFixed(d) + "%");
+const signed = (v, d = 1, unit = "") => (v == null ? "n/a" : (v > 0 ? "+" : v < 0 ? "−" : "±") + Math.abs(v).toFixed(d) + unit);
+const monthLabel = (m) => { const [y, mo] = m.split("-"); return new Date(+y, +mo - 1, 1).toLocaleString("en-US", { month: "short", year: "numeric" }); };
+const partnerWord = () => (state.flow === "imports" ? "supplier" : "destination");
+const view = () => DATA.views[state.flow + "|" + state.product];
+
+/* ---------- tooltip ---------- */
+const tip = document.getElementById("tip");
+function showTip(x, y, title, rows) {
+  tip.replaceChildren();
+  tip.appendChild(h("div", title, "t"));
+  for (const r of rows) {
+    const row = h("div", null, "row");
+    const k = h("span", null, "k");
+    if (r.color) { const i = document.createElement("i"); i.style.background = r.color; k.appendChild(i); }
+    k.appendChild(document.createTextNode(r.label));
+    row.appendChild(k);
+    row.appendChild(h("span", r.value, "v"));
+    tip.appendChild(row);
+  }
+  tip.style.display = "block";
+  const w = tip.offsetWidth, ht = tip.offsetHeight;
+  let left = x + 14, top = y + 14;
+  if (left + w > window.innerWidth - 8) left = x - w - 14;
+  if (top + ht > window.innerHeight - 8) top = y - ht - 14;
+  tip.style.left = Math.max(8, left) + "px";
+  tip.style.top = Math.max(8, top) + "px";
+}
+const hideTip = () => { tip.style.display = "none"; };
+
+/* ---------- shared time-axis helpers ---------- */
+function timeFrame(container, height, yMax, yTicks, yFmt) {
+  container.replaceChildren();
+  const W = Math.max(container.clientWidth, 280);
+  const m = { t: 40, r: 12, b: 26, l: 44 };
+  const svg = el("svg", { viewBox: `0 0 ${W} ${height}`, height, role: "img" }, container);
+  const iw = W - m.l - m.r, ih = height - m.t - m.b;
+  const g = el("g", { transform: `translate(${m.l},${m.t})` }, svg);
+  const y = (v) => ih - (v / yMax) * ih;
+  for (const t of yTicks) {
+    el("line", { x1: 0, x2: iw, y1: y(t), y2: y(t), stroke: t === 0 ? css("--axis") : css("--grid"), "stroke-width": 1 }, g);
+    const tx = el("text", { x: -8, y: y(t) + 4, "text-anchor": "end", "font-size": 11, fill: css("--muted") }, g);
+    tx.textContent = yFmt(t);
+  }
+  return { svg, g, iw, ih, y, m };
+}
+function xAxis(g, months, iw, ih) {
+  const x = (i) => (months.length < 2 ? 0 : (i / (months.length - 1)) * iw);
+  const years = [];
+  months.forEach((mo, i) => { if (mo.endsWith("-01")) years.push([mo.slice(0, 4), i]); });
+  const step = Math.ceil(years.length / Math.max(2, Math.floor(iw / 56)));
+  years.forEach(([yr, i], k) => {
+    if (k % step) return;
+    const t = el("text", { x: x(i), y: ih + 18, "text-anchor": "middle", "font-size": 11, fill: css("--muted") }, g);
+    t.textContent = yr;
+  });
+  return x;
+}
+function eventMarkers(g, months, x, ih, keyEl) {
+  keyEl.replaceChildren();
+  let lastX = -Infinity, lastRow = 1;
+  DATA.events.forEach((ev, n) => {
+    const i = months.indexOf(ev.date.slice(0, 7));
+    if (i < 0) return;
+    // Events close together get their number tags on alternating rows so they don't overlap.
+    const row = x(i) - lastX < 18 ? 1 - lastRow : 0;
+    lastX = x(i); lastRow = row;
+    const cy = -12 - row * 18;
+    el("line", { x1: x(i), x2: x(i), y1: cy + 6, y2: ih, stroke: css("--ink-2"), "stroke-width": 1, "stroke-opacity": 0.45 }, g);
+    el("circle", { cx: x(i), cy, r: 8, fill: css("--surface"), stroke: css("--axis") }, g);
+    const t = el("text", { x: x(i), y: cy + 4, "text-anchor": "middle", "font-size": 10, "font-weight": 600, fill: css("--ink-2") }, g);
+    t.textContent = n + 1;
+    const s = h("span");
+    s.appendChild(h("b", (n + 1) + " "));
+    s.appendChild(document.createTextNode(ev.short_name));
+    keyEl.appendChild(s);
+  });
+}
+function crosshair(container, g, months, x, iw, ih, rowsFor) {
+  const line = el("line", { y1: 0, y2: ih, stroke: css("--ink-2"), "stroke-width": 1, visibility: "hidden" }, g);
+  const hit = el("rect", { x: 0, y: 0, width: iw, height: ih, fill: "transparent" }, g);
+  let idx = months.length - 1;
+  const show = (i, cx, cy) => {
+    idx = Math.max(0, Math.min(months.length - 1, i));
+    line.setAttribute("x1", x(idx)); line.setAttribute("x2", x(idx)); line.setAttribute("visibility", "visible");
+    showTip(cx, cy, "12 months to " + monthLabel(months[idx]), rowsFor(idx));
+  };
+  hit.addEventListener("pointermove", (e) => {
+    const r = hit.getBoundingClientRect();
+    show(Math.round(((e.clientX - r.left) / r.width) * (months.length - 1)), e.clientX, e.clientY);
+  });
+  hit.addEventListener("pointerleave", () => { line.setAttribute("visibility", "hidden"); hideTip(); });
+  container.onkeydown = (e) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const r = container.getBoundingClientRect();
+    const ni = idx + (e.key === "ArrowRight" ? 1 : -1);
+    show(ni, r.left + 44 + x(Math.max(0, Math.min(months.length - 1, ni))), r.top + 40);
+  };
+  container.onblur = () => { line.setAttribute("visibility", "hidden"); hideTip(); };
+}
+
+/* ---------- share stacked area ---------- */
+function renderShare() {
+  const v = view(), box = document.getElementById("shareChart");
+  const names = Object.keys(v.share_series);
+  const colors = names.map((n, i) => (n === "Other" ? css("--other") : css(SERIES_VARS[i])));
+  const { g, iw, ih, y } = timeFrame(box, 300, 100, [0, 25, 50, 75, 100], (t) => t + "%");
+  const x = xAxis(g, v.months, iw, ih);
+  const n = v.months.length;
+  const base = new Array(n).fill(0);
+  const gap = css("--surface");
+  names.forEach((name, si) => {
+    const vals = v.share_series[name].map((d) => d || 0);
+    const top = vals.map((d, i) => base[i] + d);
+    let d = "M" + top.map((t, i) => `${x(i)},${y(t)}`).join("L");
+    for (let i = n - 1; i >= 0; i--) d += `L${x(i)},${y(base[i])}`;
+    el("path", { d: d + "Z", fill: colors[si], stroke: gap, "stroke-width": 1, "stroke-linejoin": "round" }, g);
+    for (let i = 0; i < n; i++) base[i] = top[i];
+  });
+  eventMarkers(g, v.months, x, ih, document.getElementById("shareEvKey"));
+  crosshair(box, g, v.months, x, iw, ih, (i) =>
+    names.slice().reverse().map((name) => {
+      const si = names.indexOf(name);
+      return { label: name, value: pct(v.share_series[name][i]), color: colors[si] };
+    }));
+  const lg = document.getElementById("shareLegend");
+  lg.replaceChildren();
+  names.forEach((name, si) => {
+    const s = h("span"); const i = document.createElement("i"); i.style.background = colors[si];
+    s.appendChild(i); s.appendChild(document.createTextNode(name)); lg.appendChild(s);
+  });
+  document.getElementById("shareTitle").textContent =
+    state.flow === "imports" ? "Supplier share of U.S. imports" : "Destination share of U.S. exports";
+}
+
+/* ---------- HHI line ---------- */
+function renderHHI() {
+  const v = view(), box = document.getElementById("hhiChart");
+  const maxV = Math.max(2000, ...v.hhi.filter((d) => d != null));
+  const yMax = Math.ceil(maxV / 500) * 500;
+  const ticks = []; for (let t = 0; t <= yMax; t += yMax > 4000 ? 1000 : 500) ticks.push(t);
+  const { g, iw, ih, y } = timeFrame(box, 300, yMax, ticks, (t) => (t >= 1000 ? (t / 1000) + "K" : t));
+  const x = xAxis(g, v.months, iw, ih);
+  for (const [thr, lbl] of [[1000, "moderate"], [1800, "high"]]) {
+    if (thr > yMax) continue;
+    el("line", { x1: 0, x2: iw, y1: y(thr), y2: y(thr), stroke: css("--muted"), "stroke-width": 1, "stroke-dasharray": "0" , "stroke-opacity": 0.7 }, g);
+    const t = el("text", { x: iw - 2, y: y(thr) - 4, "text-anchor": "end", "font-size": 11, fill: css("--muted") }, g);
+    t.textContent = lbl;
+  }
+  const color = css("--s1");
+  const pts = v.hhi.map((d, i) => (d == null ? null : [x(i), y(d)]));
+  el("path", { d: "M" + pts.filter(Boolean).map((p) => p.join(",")).join("L"), fill: "none", stroke: color,
+    "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, g);
+  const last = pts[pts.length - 1];
+  if (last) {
+    el("circle", { cx: last[0], cy: last[1], r: 4, fill: color, stroke: css("--surface"), "stroke-width": 2 }, g);
+  }
+  eventMarkers(g, v.months, x, ih, document.getElementById("hhiEvKey"));
+  crosshair(box, g, v.months, x, iw, ih, (i) => [
+    { label: "HHI", value: v.hhi[i] == null ? "n/a" : Math.round(v.hhi[i]).toLocaleString(), color },
+    { label: "Top 3 share", value: pct(v.top3[i]) },
+    { label: "Trade value", value: money(v.totals[i]) },
+  ]);
+}
+
+/* ---------- event impact diverging bars ---------- */
+function renderEvent() {
+  const v = view(), box = document.getElementById("eventChart");
+  const evIdx = DATA.events.findIndex((e) => e.date === state.event);
+  const ev = DATA.events[evIdx], res = v.events[evIdx];
+  const note = document.getElementById("eventNote");
+  box.replaceChildren();
+  let msg = ev.description + ".";
+  if (ev.affects && ev.affects !== state.flow) msg += ` This action mainly targets ${ev.affects}; switch the flow above to see its direct effect.`;
+  if (!res || !res.available) {
+    note.textContent = msg + " Not enough data on both sides of this date yet.";
+    return;
+  }
+  note.textContent = msg + ` Total ${state.flow} value changed ${signed(res.total_change_pct, 1, "%")} between the two windows.`;
+  const rows = res.countries.slice().sort((a, b) => b.change_pp - a.change_pp);
+  const rowH = 30, W = Math.max(box.clientWidth, 280), labelW = Math.min(120, W * 0.32);
+  const H = rows.length * rowH + 24;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img" }, box);
+  const maxAbs = Math.max(1, ...rows.map((r) => Math.abs(r.change_pp)));
+  const valW = 52, plotW = W - labelW - valW * 2;
+  const x0 = labelW + valW + plotW / 2;
+  const sx = (v) => (v / maxAbs) * (plotW / 2);
+  el("line", { x1: x0, x2: x0, y1: 0, y2: rows.length * rowH, stroke: css("--axis"), "stroke-width": 1 }, svg);
+  rows.forEach((r, i) => {
+    const cy = i * rowH + rowH / 2;
+    const name = el("text", { x: 0, y: cy + 4, "font-size": 13, fill: css("--ink-2") }, svg);
+    name.textContent = r.country;
+    const w = Math.abs(sx(r.change_pp)), pos = r.change_pp >= 0;
+    const bh = 18, rx = Math.min(4, w / 2);
+    const bx = pos ? x0 : x0 - w;
+    // Rounded at the data end, square at the zero baseline.
+    const d = pos
+      ? `M${bx},${cy - bh / 2}H${bx + w - rx}Q${bx + w},${cy - bh / 2} ${bx + w},${cy - bh / 2 + rx}V${cy + bh / 2 - rx}Q${bx + w},${cy + bh / 2} ${bx + w - rx},${cy + bh / 2}H${bx}Z`
+      : `M${x0},${cy - bh / 2}H${bx + rx}Q${bx},${cy - bh / 2} ${bx},${cy - bh / 2 + rx}V${cy + bh / 2 - rx}Q${bx},${cy + bh / 2} ${bx + rx},${cy + bh / 2}H${x0}Z`;
+    const bar = el("path", { d, fill: pos ? css("--pos") : css("--neg") }, svg);
+    const val = el("text", { x: pos ? x0 + w + 6 : x0 - w - 6, y: cy + 4, "text-anchor": pos ? "start" : "end",
+      "font-size": 12, fill: css("--ink"), "font-weight": 600 }, svg);
+    val.textContent = signed(r.change_pp, 1, " pp");
+    const hit = el("rect", { x: labelW, y: i * rowH, width: W - labelW, height: rowH, fill: "transparent" }, svg);
+    const rowsT = [
+      { label: "Share before", value: pct(r.before) },
+      { label: "Share after", value: pct(r.after) },
+      { label: "Change", value: signed(r.change_pp, 2, " pp") },
+    ];
+    hit.addEventListener("pointermove", (e) => { bar.setAttribute("opacity", 0.8); showTip(e.clientX, e.clientY, r.country, rowsT); });
+    hit.addEventListener("pointerleave", () => { bar.setAttribute("opacity", 1); hideTip(); });
+  });
+}
+
+/* ---------- KPIs and tables ---------- */
+function kpi(label, value, sub, deltaText, deltaCls) {
+  const c = h("div", null, "card kpi");
+  c.appendChild(h("div", label, "label"));
+  c.appendChild(h("div", value, "value"));
+  const s = h("div", null, "sub");
+  if (deltaText) { s.appendChild(h("span", deltaText, "delta " + deltaCls)); s.appendChild(document.createTextNode(" ")); }
+  s.appendChild(document.createTextNode(sub));
+  c.appendChild(s);
+  return c;
+}
+function renderKPIs() {
+  const k = view().kpis, box = document.getElementById("kpis");
+  box.replaceChildren();
+  const valChg = k.total_12m_prior ? (k.total_12m / k.total_12m_prior - 1) * 100 : null;
+  box.appendChild(kpi(`${state.flow === "imports" ? "Imports" : "Exports"}, last 12 months`, money(k.total_12m),
+    "vs prior 12 months", valChg == null ? "" : signed(valChg, 1, "%"), valChg > 0 ? "up" : valChg < 0 ? "down" : "flat"));
+  box.appendChild(kpi(`Largest ${partnerWord()}`, k.top_country, `${pct(k.top_share)} of value`));
+  box.appendChild(kpi(`Top 3 ${partnerWord()}s`, pct(k.top3_share), "combined share"));
+  const hc = k.hhi_prior == null ? null : k.hhi - k.hhi_prior;
+  // Rising concentration is a risk signal, so an increase is shown in the "bad" colour.
+  box.appendChild(kpi("Concentration (HHI)", Math.round(k.hhi).toLocaleString(), k.hhi_label,
+    hc == null ? "" : signed(hc, 0) + " vs year ago ·", hc > 0 ? "down" : hc < 0 ? "up" : "flat"));
+}
+function renderTable() {
+  const v = view(), t = document.getElementById("topTable");
+  document.getElementById("tableTitle").textContent = `Top ${partnerWord()}s, last 12 months`;
+  document.getElementById("tableDesc").textContent = `12 months to ${monthLabel(v.kpis.latest_month)}, compared with the 12 months before.`;
+  t.replaceChildren();
+  const head = t.createTHead().insertRow();
+  for (const [txt, n] of [["Country", 0], ["Value", 1], ["Share", 1], ["Value chg", 1], ["Share chg", 1]]) {
+    const th = h("th", txt); if (n) th.className = "n"; head.appendChild(th);
+  }
+  const body = t.createTBody();
+  for (const r of v.table) {
+    const tr = body.insertRow();
+    tr.appendChild(h("td", r.country));
+    tr.appendChild(h("td", money(r.value), "n"));
+    tr.appendChild(h("td", pct(r.share), "n"));
+    tr.appendChild(h("td", signed(r.value_change_pct, 1, "%"), "n"));
+    tr.appendChild(h("td", signed(r.share_change_pp, 1, " pp"), "n"));
+  }
+}
+function renderEventsTable() {
+  const t = document.getElementById("eventsTable");
+  t.replaceChildren();
+  const head = t.createTHead().insertRow();
+  for (const txt of ["#", "Date", "Event", "Targets", "Notes"]) head.appendChild(h("th", txt));
+  const body = t.createTBody();
+  DATA.events.forEach((ev, i) => {
+    const tr = body.insertRow();
+    tr.appendChild(h("td", String(i + 1)));
+    tr.appendChild(h("td", ev.date));
+    const td = h("td"); const a = document.createElement("a");
+    a.href = ev.source_url; a.target = "_blank"; a.rel = "noopener"; a.textContent = ev.short_name;
+    td.appendChild(a); td.appendChild(document.createTextNode(" · " + ev.description)); tr.appendChild(td);
+    tr.appendChild(h("td", ev.affects));
+    tr.appendChild(h("td", ev.notes));
+  });
+}
+
+/* ---------- wiring ---------- */
+function renderAll() {
+  renderKPIs(); renderShare(); renderHHI(); renderEvent(); renderTable();
+}
+function init() {
+  if (!DATA) { document.body.textContent = "No data embedded. Run: python src/build_dashboard.py"; return; }
+  const meta = document.getElementById("meta");
+  meta.appendChild(document.createTextNode(`Data: ${monthLabel(DATA.meta.first_month)} to ${monthLabel(DATA.meta.last_month)} · `));
+  const a = document.createElement("a"); a.href = DATA.meta.source_url; a.textContent = DATA.meta.source; meta.appendChild(a);
+  meta.appendChild(document.createTextNode(` · Built ${DATA.meta.generated_utc.slice(0, 10)}`));
+  if (DATA.meta.synthetic) document.getElementById("banner").hidden = false;
+
+  const sel = document.getElementById("product");
+  for (const [k, label] of Object.entries(DATA.meta.products)) {
+    if (!DATA.views["imports|" + k] && !DATA.views["exports|" + k]) continue;
+    const o = document.createElement("option"); o.value = k; o.textContent = label; sel.appendChild(o);
+  }
+  sel.value = state.product;
+  sel.onchange = () => { state.product = sel.value; renderAll(); };
+  document.querySelectorAll("#flowSeg button").forEach((b) => {
+    b.onclick = () => {
+      state.flow = b.dataset.flow;
+      document.querySelectorAll("#flowSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      renderAll();
+    };
+  });
+  const es = document.getElementById("eventSel");
+  DATA.events.forEach((ev, i) => {
+    const o = document.createElement("option"); o.value = ev.date; o.textContent = `${i + 1}. ${ev.short_name} (${ev.date})`; es.appendChild(o);
+  });
+  state.event = DATA.events[0].date;
+  es.onchange = () => { state.event = es.value; renderEvent(); };
+  renderEventsTable();
+  renderAll();
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(renderAll, 150); });
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+}
+init();
+</script>
+</body>
+</html>
