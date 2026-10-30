@@ -4,8 +4,8 @@ A running log of what has been checked against the source and what could not be 
 
 ## Data pull
 
-- [ ] Latest pull date and row counts recorded (see `data/raw/pull_log.csv`)
-- [ ] `data/processed/checks.json` status is `ok` (country rows reconcile to the Census all-countries total)
+- [x] Full pull on 2026-10-30: 72 files (imports and exports, HS 8541/8542/8486, 2015 to 2026), data through 2026-08. Row counts and SHA-256 in `data/raw/pull_log.csv`
+- [x] `data/processed/checks.json` status is `ok`: 840 flow-code-months checked, largest gap 0.0% (2026-10-30)
 
 ## Annual totals vs Census published figures
 
@@ -23,7 +23,7 @@ Run `python src/verify.py --spot COUNTRY MONTH FLOW HS` and compare with the sou
 
 | Country | Month | Flow | HS | Ours | Source | Match? |
 |---|---|---|---|---|---|---|
-| Taiwan | | imports | 8542 | | | |
+| Taiwan | 2025-06 | imports | 8542 | 832,645,835 | 832,645,835 (separate single-country API request, 2026-10-30) | Yes, against the API; not yet against USA Trade Online |
 | Malaysia | | imports | 8542 | | | |
 | Netherlands | | imports | 8486 | | | |
 

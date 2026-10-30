@@ -6,7 +6,7 @@ Usage:
     python src/fetch_census.py --refresh       # re-download every file
 
 An API key is required (free: https://api.census.gov/data/key_signup.html).
-Set it with:  export CENSUS_API_KEY=your_key
+Set it with:  export CENSUS_API_KEY=your_key   (or put CENSUS_API_KEY=your_key in a .env file)
 
 Each request is saved untouched to data/raw/<flow>_<hs>_<year>.json so the pipeline can be
 re-run offline and every number can be traced back to the original response. Every pull is
@@ -24,7 +24,7 @@ import time
 
 import requests
 
-from config import FLOWS, HS_CODES, RAW_DIR, START_YEAR
+from config import FLOWS, HS_CODES, RAW_DIR, ROOT, START_YEAR
 
 TIMEOUT = 60
 RETRIES = 3
@@ -53,8 +53,10 @@ def request_rows(url, params):
             print(f"    network error ({exc}); retrying...")
             time.sleep(2 * attempt)
             continue
-        if resp.status_code in (301, 302) and "missing_key" in resp.headers.get("Location", ""):
-            raise SystemExit("Census rejected the request: a valid CENSUS_API_KEY is required.")
+        location = resp.headers.get("Location", "")
+        if resp.status_code in (301, 302) and ("missing_key" in location or "invalid_key" in location):
+            raise SystemExit("Census rejected CENSUS_API_KEY as missing or invalid. New keys must be "
+                             "activated from the link in the Census sign-up email.")
         if resp.status_code == 204:
             return []
         if resp.status_code == 200:
@@ -87,6 +89,15 @@ def fetch_year(flow, hs, year, api_key):
     return [header] + body if header else []
 
 
+def load_dotenv(path):
+    """Read KEY=value lines from a .env file (gitignored) without overriding the environment."""
+    if path.exists():
+        for line in path.read_text().splitlines():
+            key, sep, value = line.partition("=")
+            if sep and not key.strip().startswith("#"):
+                os.environ.setdefault(key.strip(), value.strip().strip('"'))
+
+
 def log_pull(path, payload, text):
     log = RAW_DIR / "pull_log.csv"
     new = not log.exists()
@@ -105,6 +116,7 @@ def main():
     parser.add_argument("--refresh", action="store_true", help="re-download files that already exist")
     args = parser.parse_args()
 
+    load_dotenv(ROOT / ".env")
     api_key = os.environ.get("CENSUS_API_KEY")
     if not api_key:
         raise SystemExit("Set CENSUS_API_KEY first (free key: https://api.census.gov/data/key_signup.html).")
