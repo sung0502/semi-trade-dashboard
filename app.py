@@ -34,10 +34,12 @@ st.set_page_config(page_title="U.S. Semiconductor Trade Dependence", layout="wid
 
 
 @st.cache_data
-def load(data_dir: str):
+def load(data_dir: str, _version: tuple):
+    """Load the data. `_version` holds file modification times, so the cache refreshes when
+    a redeploy changes the data or the events table instead of serving the old copy."""
     data_dir = Path(data_dir)
     df = pd.read_csv(data_dir / "trade_monthly.csv", dtype={"hs": str, "cty_code": str})
-    events = pd.read_csv(EVENTS_CSV, dtype=str).fillna("")
+    events = pd.read_csv(EVENTS_CSV, dtype=str).fillna("").sort_values("date").reset_index(drop=True)
     meta = json.loads((data_dir / "dashboard_data.json").read_text())["meta"]
     return df, events, meta
 
@@ -61,13 +63,20 @@ def base_layout(fig, height, yaxis):
 
 
 def mark_dates(fig, events, start, end):
-    """Dotted lines for policy events, dashed grey lines for HS classification breaks."""
-    for _, ev in events.iterrows():
+    """Dotted lines for policy events, dashed grey lines for HS classification breaks.
+
+    Events are labelled with their number from event_key() rather than their name, since
+    events a few months apart would otherwise print on top of each other. Neighbouring
+    numbers alternate between two heights for the same reason.
+    """
+    for i, ev in events.iterrows():
         m = pd.Period(ev["date"], freq="M")
         if start <= m <= end:
             fig.add_vline(x=m.to_timestamp(), line=dict(color="rgba(128,128,128,0.7)", width=1, dash="dot"))
-            fig.add_annotation(x=m.to_timestamp(), y=1, yref="paper", text=ev["short_name"], showarrow=False,
-                               textangle=-90, xanchor="right", yanchor="top", font=dict(size=10))
+            fig.add_annotation(x=m.to_timestamp(), y=1 if i % 2 == 0 else 0.92, yref="paper", text=f"<b>{i + 1}</b>",
+                               hovertext=f"{ev['short_name']} ({ev['date']})", showarrow=False,
+                               yanchor="top", font=dict(size=11, color="#0b0b0b"),
+                               bgcolor="rgba(255,255,255,0.85)", borderpad=2)
     for month, label in HS_BREAKS.items():
         m = pd.Period(month, freq="M")
         if start <= m <= end:
@@ -76,11 +85,19 @@ def mark_dates(fig, events, start, end):
                                xanchor="left", yanchor="bottom", font=dict(size=10, color="gray"))
 
 
+def event_key(events, start, end):
+    """Caption text mapping each event number on the charts to its name and date."""
+    items = [f"**{i + 1}** {ev['short_name']} ({pd.Period(ev['date'], freq='M').strftime('%b %Y')})"
+             for i, ev in events.iterrows() if start <= pd.Period(ev["date"], freq="M") <= end]
+    return "Events: " + " · ".join(items) if items else ""
+
+
 if not (DATA_DIR / "trade_monthly.csv").exists():
     st.error(f"No processed data in {DATA_DIR}. Run src/fetch_census.py and src/process.py first.")
     st.stop()
 
-df, events, meta = load(str(DATA_DIR))
+version = tuple(p.stat().st_mtime for p in (DATA_DIR / "trade_monthly.csv", DATA_DIR / "dashboard_data.json", EVENTS_CSV))
+df, events, meta = load(str(DATA_DIR), version)
 
 st.title("U.S. Semiconductor Trade Dependence")
 st.caption(
@@ -133,7 +150,8 @@ k4.metric("HHI (0 to 10,000)", f"{h.loc[latest]:,.0f}",
 
 # ---------- supplier shares ----------
 st.subheader(f"{word.capitalize()} shares over time")
-st.caption("Share of trailing 12-month value. Dotted lines mark policy events; dashed lines mark HS revisions.")
+st.caption("Share of trailing 12-month value. Numbered dotted lines mark policy events (hover for the name); "
+           "dashed lines mark HS revisions.")
 top = r12.sum().sort_values(ascending=False).head(TOP_N).index.tolist()
 x = [p.to_timestamp() for p in sh.index]
 fig = go.Figure()
@@ -146,6 +164,7 @@ for i, c in enumerate(top + ["Other"]):
 mark_dates(fig, events, start, end)
 st.plotly_chart(base_layout(fig, 420, dict(title="Share (%)", range=[0, 100], ticksuffix="%")),
                 use_container_width=True)
+st.caption(event_key(events, start, end))
 
 # ---------- concentration ----------
 st.subheader("Concentration (HHI)")
@@ -161,10 +180,11 @@ fig.add_trace(go.Scatter(x=x, y=h, name="HHI", mode="lines", line=dict(width=2, 
 mark_dates(fig, events, start, end)
 st.plotly_chart(base_layout(fig, 320, dict(title="HHI", range=[0, ymax])).update_layout(showlegend=False),
                 use_container_width=True)
+st.caption(event_key(events, start, end))
 
 # ---------- event windows ----------
 st.subheader("Around a policy event")
-labels = {f"{ev['date']}  {ev['short_name']}": i for i, ev in events.iterrows()}
+labels = {f"{i + 1}. {ev['short_name']} ({ev['date']})": i for i, ev in events.iterrows()}
 choice = st.selectbox("Event", list(labels))
 ev = events.loc[labels[choice]]
 ev_month = pd.Period(ev["date"], freq="M")
