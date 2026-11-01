@@ -32,6 +32,24 @@ To refresh, re-run the fetch and process steps. The fetch script always re-downl
 
 `python src/build_dashboard.py` also writes `dashboard.html`, a single static file with the same data and no server, which you can publish with GitHub Pages.
 
+## SQL analysis
+
+The processed data can also be queried with SQL through DuckDB, which runs inside Python with no database server.
+
+```bash
+python sql/query.py sql/03_chips_act_equipment.sql   # run one analysis
+python sql/query.py --all                            # run every analysis
+python sql/query.py --save data/trade.duckdb         # database file for the duckdb CLI or DBeaver
+```
+
+`sql/schema.sql` defines four views: `trade` (monthly, by country), `annual`, `concentration` and `events`.
+
+| File | Question |
+|---|---|
+| `sql/01_top_suppliers.sql` | Top 3 integrated circuit suppliers each year, with growth |
+| `sql/02_hhi_check.sql` | Verification: SQL HHI recomputed from monthly data vs the Python output |
+| `sql/03_chips_act_equipment.sql` | Did chipmaking equipment imports rise after the CHIPS and Science Act? |
+
 ## Project layout
 
 ```
@@ -46,6 +64,7 @@ data/events.csv          policy events with dates and primary sources
 docs/HS_REVISIONS.md     HS 2017 and 2022 classification breaks
 NOTES.md                 verification log: what was checked and what could not be verified
 FINDINGS.md              one-page write-up of key findings
+sql/                     DuckDB views, query runner and SQL analyses
 tests/                   unit tests and a synthetic data generator
 ```
 
