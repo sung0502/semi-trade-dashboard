@@ -168,7 +168,8 @@ st.caption(event_key(events, start, end))
 
 # ---------- concentration ----------
 st.subheader("Concentration (HHI)")
-st.caption("Herfindahl-Hirschman Index on trailing 12-month shares. Rising means a more concentrated supplier base.")
+st.caption("Herfindahl-Hirschman Index on trailing 12-month shares. Rising means a more concentrated supplier base. "
+           "New to HHI? Open **What is the HHI?** in the sidebar.")
 fig = go.Figure()
 ymax = max(2500, float(h.max()) * 1.1)
 fig.add_hrect(y0=1000, y1=1800, fillcolor="rgba(128,128,128,0.08)", line_width=0,
@@ -181,6 +182,51 @@ mark_dates(fig, events, start, end)
 st.plotly_chart(base_layout(fig, 320, dict(title="HHI", range=[0, ymax])).update_layout(showlegend=False),
                 use_container_width=True)
 st.caption(event_key(events, start, end))
+
+# ---------- sidebar guide ----------
+with st.sidebar:
+    st.header("Guide")
+    with st.expander("What is the HHI?", expanded=True):
+        st.markdown("""
+The **Herfindahl-Hirschman Index (HHI)** is one number that says how much a market depends
+on a few players. U.S. antitrust regulators use it to judge mergers; here the "players" are
+the countries the U.S. trades with.
+
+**How it's calculated.** Take each country's percentage share, square it, and add them up.
+
+- One country, 100%: 100² = **10,000**
+- Two countries, 50% each: 50² + 50² = **5,000**
+- Four countries, 25% each: 4 × 25² = **2,500**
+- Ten countries, 10% each: 10 × 10² = **1,000**
+- Many tiny suppliers: close to **0**
+
+**Why square the shares?** Squaring makes big suppliers count much more than small
+ones. A 40% supplier adds 1,600 points; four 10% suppliers add only 400 together. So the
+HHI rises when one or two countries dominate, even if the number of countries stays the same.
+
+**How to read the bands** (2023 DOJ/FTC Merger Guidelines):
+- **Below 1,000:** unconcentrated, many comparable suppliers
+- **1,000 to 1,800:** moderately concentrated
+- **Above 1,800:** highly concentrated, a disruption in one country would hurt
+
+**A rising line** means the U.S. is relying on fewer countries; a falling line means supply
+is spreading out.
+
+**Limits.** HHI uses the country of origin, which for chips is often where they were
+packaged and tested, not where the wafer was made. It also says nothing about which
+countries are risky; a market split between two close allies can score higher than one
+spread across rivals.
+""")
+        st.markdown(f"**In this view** ({PRODUCTS[product]}, {flow}, 12 months to "
+                    f"{latest.strftime('%b %Y')}), the HHI of **{h.loc[latest]:,.0f}** comes mostly from:")
+        contrib = (latest_share * 100).sort_values(ascending=False).head(5)
+        rest = (latest_share * 100).drop(contrib.index)
+        breakdown = pd.DataFrame({
+            "Country": list(contrib.index) + [f"{len(rest)} others"],
+            "Share": [f"{v:.1f}%" for v in contrib] + [f"{rest.sum():.1f}%"],
+            "HHI points": [f"{v * v:,.0f}" for v in contrib] + [f"{(rest ** 2).sum():,.0f}"],
+        })
+        st.dataframe(breakdown, hide_index=True, use_container_width=True)
 
 # ---------- event windows ----------
 st.subheader("Around a policy event")
