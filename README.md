@@ -2,7 +2,7 @@
 
 An interactive dashboard showing where the United States buys and sends semiconductors and chipmaking equipment, how concentrated those trading partners are, and how trade shifted around major tariff and export-control actions.
 
-**Live app:** *(add the Streamlit Community Cloud link here)* · **Findings:** [FINDINGS.md](FINDINGS.md)
+**Live app:** https://semi-trade-dashboard.streamlit.app/ · **Findings:** [FINDINGS.md](FINDINGS.md)
 
 It answers three questions:
 
@@ -108,7 +108,6 @@ The app is built for Streamlit Community Cloud. `data/processed/` is committed, 
 
 1. Push this repository to GitHub (public).
 2. At https://share.streamlit.io, create an app from the repository with `app.py` as the entry point.
-3. Add the app link to the top of this README.
 
 ## Data source
 
